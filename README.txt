@@ -1,6 +1,6 @@
-##AIRobot: From FTC Chassis to Self-Driving Vehicle
+AIRobot
 
-**Inspired by a discarded FTC chassis and a growing interest in autonomous vehicles, AIRobot is a project born out of the desire to repurpose existing resources.**
+Inspired by a discarded FTC chassis and a growing interest in autonomous vehicles, AIRobot is a project born out of the desire to repurpose existing resources.
 
 Initially, I explored potential project ideas on Reddit, hoping to find inspiration for my unused FTC chassis. However, the FTC code being partially close sourced and designed exclusively for Android phones, became apparent, hindering my ability to explore alternative applications. Undeterred by these constraints, I decided to embark on a new path.
 
