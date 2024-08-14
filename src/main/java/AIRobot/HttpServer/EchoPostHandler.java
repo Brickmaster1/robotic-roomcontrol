@@ -30,16 +30,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package AIRobot.HttpServer;
 
-import AIRobot.commands.UnsupportedCommandException;
 import AIRobot.devices.Module;
-import AIRobot.devices.Motor;
-import AIRobot.util.MotorControl;
-import AIRobot.util.PowerSetting;
+import AIRobot.DeviceUtil.PowerSetting;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import org.opencv.videoio.VideoCapture;
 import org.usb4java.DeviceHandle;
-import sun.security.provider.NativePRNG;
 
 import java.io.*;
 import java.net.URLDecoder;

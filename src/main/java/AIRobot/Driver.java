@@ -30,12 +30,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 package AIRobot;
 
+import AIRobot.DeviceUtil.MotorControl;
 import AIRobot.devices.Module;
 import AIRobot.devices.Motor;
 import AIRobot.commands.UnsupportedCommandException;
 import AIRobot.usb.UsbInterface;
 import AIRobot.util.*;
-import org.opencv.videoio.VideoCapture;
+
 import org.usb4java.DeviceHandle;
 import org.usb4java.LibUsb;
 import org.usb4java.LibUsbException;

@@ -28,11 +28,8 @@ TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF TH
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-package AIRobot.util;
+package AIRobot.DeviceUtil;
 
-import AIRobot.Driver;
-import AIRobot.commands.Command;
-import AIRobot.commands.PingCommand;
 import AIRobot.commands.UnsupportedCommandException;
 import AIRobot.devices.Module;
 import AIRobot.devices.Motor;

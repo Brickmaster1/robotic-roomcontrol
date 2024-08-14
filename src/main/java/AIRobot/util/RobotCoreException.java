@@ -1,4 +1,5 @@
-package AIRobot.util;/*
+
+/*
  * Copyright (c) 2014, 2015 Qualcomm Technologies Inc
  *
  * All rights reserved.
@@ -28,6 +29,7 @@ package AIRobot.util;/*
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+package AIRobot.util;
 /*
  * RobotLogic.RobotCoreException
  *

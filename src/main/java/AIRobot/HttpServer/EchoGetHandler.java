@@ -31,7 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package AIRobot.HttpServer;
 
 import AIRobot.devices.Module;
-import AIRobot.util.MotorControl;
+import AIRobot.DeviceUtil.MotorControl;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import org.usb4java.DeviceHandle;
@@ -43,7 +43,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static AIRobot.HttpServer.EchoPostHandler.parseQuery;
-import static AIRobot.HttpServer.EchoPostHandler.psg;
 
 public class EchoGetHandler implements HttpHandler {
 
