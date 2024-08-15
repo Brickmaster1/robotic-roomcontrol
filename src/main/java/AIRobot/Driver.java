@@ -51,6 +51,7 @@ import java.util.concurrent.CountDownLatch;
 import static java.lang.System.exit;
 import static java.lang.Thread.sleep;
 
+//driver class for controlling the robot, initializes the device and starts the threads
 public class Driver {
     //hashmap to convert degree to x and y values
     public static HashMap<Integer, FloatPair> DegreeMap = new HashMap<>();
@@ -105,6 +106,8 @@ public class Driver {
 
     private DeviceHandle handle;
     private Module module;
+
+    //initialize the device
     public void initialization(DeviceHandle handle) throws InterruptedException {
         ByteBuffer buffer = null;
         //resetDevice
@@ -133,16 +136,7 @@ public class Driver {
         sleep(75);
     }
 
-//    private void initializeCamera(){
-//        // Create a VideoCapture object to capture video from the default camera (usually 0)
-//        camera = new VideoCapture(0);
-//
-//        if (!camera.isOpened()) {
-//            System.out.println("Error: Camera is not available!");
-//            return;
-//        }
-//    }
-
+    //initialize the hashmap that converts degrees to x and y values
     public void initializeDirectionHashmap(){
         // Add some entries to the map
         //Hashmap that converts degrees to x and y values for the 4 motors
@@ -327,6 +321,8 @@ public class Driver {
         DegreeMap.put(178, new FloatPair(-1f, -0.0647058765f));
         DegreeMap.put(179, new FloatPair(-1f, -0.0647058765f));
     }
+
+    //main functin that initializes the device and starts the threads
     public void driverFunction(BlockingQueue bq) throws UnsupportedCommandException, InterruptedException {
         int result = LibUsb.init(null);
         if (result != LibUsb.SUCCESS)
