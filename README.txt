@@ -16,6 +16,10 @@ project’s horizons, enabling the integration of a camera and the development
 of a self-driving model. Through rigorous training and testing, the model 
 learned to navigate its environment autonomously.
 
+**Disclaimer:** This code is not intended for use in the FIRST Tech Challenge (FTC). 
+It is a custom project developed for educational purposes, focusing on autonomous 
+driving and repurposing existing robotics components.
+
 ## Model Training Process
 
 To train the self-driving car model, I implemented a custom training mode on 
