@@ -1,5 +1,7 @@
 /*
 Copyright (c) 2024 Aditya Mogli
+Copyright (C) 2011 Klaus Reimer, k@ailis.de
+Copyright (C) 2013 Luca Longinotti, l@longi.li
 
 All rights reserved.
 
@@ -155,6 +157,7 @@ public class UsbInterface {
         buffer.get(b);
         return b;
     }
+
     public static void controlTransfer(DeviceHandle handle, byte req, int wVal, int idx, ByteBuffer buffer) {
         int result;
         ByteBuffer data = BufferUtils.allocateByteBuffer(0);

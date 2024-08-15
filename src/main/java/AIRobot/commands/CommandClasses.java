@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package AIRobot.commands;
 
 public class CommandClasses {
+    //This is the list of command classes used in this project, you can add more as needed
     public static final int SET_POWER_CMD = 0x100F;
     public static final int GET_POWER_CMD = 0x1010;
     public static final int MODULE_STATUS_CMD = 0x7f03;

@@ -34,35 +34,15 @@ package AIRobot.commands;
 
 import AIRobot.util.Message;
 
-/**
- * Created by bob on 2/6/2017.
- */
 @SuppressWarnings("WeakerAccess")
 public class UnsupportedCommandException extends Exception
-    {
-//    private LynxModule                   lynxModule;
+{
     private int                          commandNumber;
-//    private Class<? extends LynxMessage> clazz;
 
-    public UnsupportedCommandException(Message message)
-        {
-//        this.lynxModule = module;
-//        this.commandNumber = lynxMessage.getCommandNumber();
-//        this.clazz = lynxMessage.getClass();
-        }
-
-    public int getCommandNumber()
-        {
-        return commandNumber;
-        }
-
-//    public Class<? extends LynxMessage> getClazz()
-//        {
-//        return clazz;
-//        }
-
-//    public LynxModuleIntf getLynxModule()
-//        {
-//        return lynxModule;
-//        }
+    public UnsupportedCommandException(Message message) {
     }
+
+    public int getCommandNumber() {
+            return commandNumber;
+    }
+}

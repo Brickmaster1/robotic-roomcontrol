@@ -12,7 +12,7 @@ the following conditions are met:
 2. Redistributions in binary form must reproduce the above copyright notice, this list
    of conditions, and the following disclaimer in the documentation and/or
    other materials provided with the distribution.
-3. Neither the name of [Your Name or Your Organization] nor the names of its contributors
+3. Neither the name of Aditya Mogli nor the names of its contributors
    may be used to endorse or promote products derived from this software without specific
    prior written permission.
 
@@ -36,8 +36,8 @@ import AIRobot.util.Datagram;
 import AIRobot.util.Message;
 import org.usb4java.DeviceHandle;
 
-import java.util.Arrays;
 
+// Represents a command that can be sent to the USB module
 public class Command extends Message {
     protected int commandNumber = 0;
     private int destModuleAddress = 0;
@@ -45,123 +45,137 @@ public class Command extends Message {
     private int referenceNumber = 0;
     private int packetId = 0;
     private byte[] payloadData;
-
-    public boolean isResponseExpected() {
-        return isResponseExpected;
-    }
-
-    public void setResponseExpected(boolean responseExpected) {
-        isResponseExpected = responseExpected;
-    }
-
     protected boolean isResponseExpected;
-
     protected Module module;
 
+    // Creates a command with default values
     public Command() {
-        this.destModuleAddress = 0x02;
-        this.referenceNumber = 0;
-        this.packetId = this.commandNumber;
-        //this.payloadData = payloadData;
-        this.isResponseExpected = false;
+        this.destModuleAddress = 0x02; // Default module address
+        this.referenceNumber = 0; // Default reference number
+        this.packetId = this.commandNumber; // Packet ID set to command number
+        this.isResponseExpected = false; // By default, no response is expected
     }
 
+    // Returns the command number
     public int getCommandNumber() {
         return commandNumber;
     }
 
+    // Converts the command to a payload byte array
     @Override
     public byte[] toPayloadByteArray() {
         return new byte[0];
     }
 
+    // Populates the command from a given payload byte array
     @Override
     public void fromPayloadByteArray(byte[] rgb) {
 
     }
 
+    // Sets the command number
     public void setCommandNumber(int commandNumber) {
         this.commandNumber = commandNumber;
     }
 
+    // Returns the destination module address
     public int getDestModuleAddress() {
         return destModuleAddress;
     }
 
+    // Sets the destination module address
     public void setDestinationModuleAddress(int destModuleAddress) {
         this.destModuleAddress = destModuleAddress;
     }
 
+    // Returns the current message number and increments it
     public int getMessageNumber() {
         messageNumber++;
         return messageNumber;
     }
 
+    // Sets the message number (this method appears unused and might be redundant)
     public void setMessageNumber(int messageNumber) {
         this.messageNumber = messageNumber;
     }
 
+    // Returns the reference number
     public int getReferenceNumber() {
         return referenceNumber;
     }
 
+    // Sets the reference number
     public void setReferenceNumber(int referenceNumber) {
         this.referenceNumber = referenceNumber;
     }
 
+    // Returns the packet ID
     public int getPacketId() {
         return packetId;
     }
 
+    // Sets the packet ID
     public void setPacketId(int packetId) {
         this.packetId = packetId;
     }
 
+    // Returns the payload data
     public byte[] getPayloadData() {
         return payloadData;
     }
 
+    // Sets the payload data
     public void setPayloadData(byte[] payloadData) {
         this.payloadData = payloadData;
     }
 
+    // Converts the command to payload data (currently returns null)
     public byte[] toPayloadData(){
         return null;
     }
 
+    // Creates a datagram from the command and returns it as a byte array
     public byte[] createDatagram() throws UnsupportedCommandException {
-        Datagram dg = new Datagram(this);
-        //System.out.println("CreateDatagram " + dg.getCommandNumber());
-        byte[] b1 = dg.toByteArray();
+        Datagram dg = new Datagram(this); // Create a datagram with the command
+        byte[] b1 = dg.toByteArray(); // Convert the datagram to a byte array
         return b1;
     }
+
+    // Waits for a response to the command for a set duration
     private Command waitForResponse(){
         // Set the desired duration for the loop in milliseconds
-        long durationInMillis = 1000; // 1 seconds
+        long durationInMillis = 1000; // 1 second
+
         // Record the start time
         long startTime = System.currentTimeMillis();
+
+        // If the command expects a response, wait for it
         if(isResponseExpected) {
             while (System.currentTimeMillis() - startTime < durationInMillis) {
+                // Check if there's an unfinished command matching the command number
                 Command cmd = module.getUnfinishedCommand(this.commandNumber);
                 if (cmd != null) {
-                    //module.removeToUnfinishedCommand(this);
-                    return cmd;
+                    return cmd; // Return the command if a response is found
                 }
             }
         }
-        //return null if response is not received in a second
+        // Return null if no response is received within the duration
         return null;
     }
 
+    // Executes the command by sending it via USB and waits for a response if expected
     public Command commandExecute(DeviceHandle handle) throws UnsupportedCommandException {
-        byte[] b1 = createDatagram();
-        //Need to add to unfinished command to handle the response
+        byte[] b1 = createDatagram(); // Create a datagram for the command
+
+        // If a response is expected, add the command to the list of unfinished commands
         if(isResponseExpected){
             module.addToUnfinishedCommands(this);
-            //System.out.println("in addtoUnifinishedCommands " + module.getUnfinishCommandLength());
         }
+
+        // Write the datagram to the USB interface
         UsbInterface.write(handle, b1);
-        //System.out.println(Arrays.toString(b1));
+
+        // Wait for a response if expected and return the response command
         return waitForResponse();
     }
 }

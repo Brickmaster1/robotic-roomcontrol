@@ -38,9 +38,6 @@ import AIRobot.util.Datagram;
 
 import java.nio.ByteBuffer;
 
-/**
- * Created by bob on 2016-03-07.
- */
 public class GetMotorPowerCommand extends Command {
     //----------------------------------------------------------------------------------------------
     // State
@@ -79,10 +76,6 @@ public class GetMotorPowerCommand extends Command {
     // Operations
     //----------------------------------------------------------------------------------------------
 
-//    public static Class<? extends LynxResponse> getResponseClass()
-//        {
-//        return GetMotorPowerCommand.class;
-//        }
 
     public byte[] toPayloadData() {
         ByteBuffer buffer = ByteBuffer.allocate(cbPayload).order(Datagram.LYNX_ENDIAN);
@@ -93,5 +86,4 @@ public class GetMotorPowerCommand extends Command {
         ByteBuffer buffer = ByteBuffer.wrap(rgb).order(Datagram.LYNX_ENDIAN);
         this.motor = buffer.get();
     }
-
 }

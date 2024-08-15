@@ -1,5 +1,7 @@
 /*
 Copyright (c) 2024 Aditya Mogli
+Copyright (C) 2011 Klaus Reimer, k@ailis.de
+Copyright (C) 2013 Luca Longinotti, l@longi.li
 
 All rights reserved.
 
@@ -61,21 +63,18 @@ public class Driver {
     private static final short VENDOR_ID = 0x403;
     private static final short PRODUCT_ID = 0x6015;
 
-    /** The ADB interface number of the Samsung Galaxy Nexus. */
-    //private static final byte INTERFACE = 1;
+
+    //Interface of the REV EXPANSION HUB
     private static final byte INTERFACE = 0x0;
 
-    /** The ADB input endpoint of the Samsung Galaxy Nexus. */
-    //private static final byte IN_ENDPOINT = (byte) 0x83;
+    //Input endpoint of the REV EXPANSION HUB
     public static final byte IN_ENDPOINT = (byte) 0x81;
 
 
-    /** The ADB output endpoint of the Samsung Galaxy Nexus. */
-    //private static final byte OUT_ENDPOINT = 0x03;
+    //Output endpoint of the REV EXPANSION HUB
     public static final byte OUT_ENDPOINT = 0x2;
 
     /** The communication timeout in milliseconds. */
-    //    private static final int TIMEOUT = 5000;
     public static final int TIMEOUT = Integer.MAX_VALUE;
 
     public DeviceHandle getHandle() {
@@ -94,13 +93,6 @@ public class Driver {
         this.module = module;
     }
 
-//    public MotorControl getMotorControl() {
-//        return motorControl;
-//    }
-//
-//    public void setMotorControl(MotorControl motorControl) {
-//        this.motorControl = motorControl;
-//    }
 
     //private MotorControl motorControl;
 
@@ -112,9 +104,12 @@ public class Driver {
         ByteBuffer buffer = null;
         //resetDevice
         UsbInterface.controlTransfer(handle, (byte) 0x00, 0, 0, buffer);
-//        Multi m1=new Multi(handle);
-//        Thread t1 =new Thread(m1);   // Using the constructor Thread(Runnable r)
-//        t1.start();
+        sleep(75);
+        //setConfig
+        UsbInterface.controlTransfer(handle, (byte) 0x01, 0, 0, buffer);
+        sleep(75);
+        //setAddress
+        UsbInterface.controlTransfer(handle, (byte) 0x02, 0, 0, buffer);
         sleep(75);
         //setBaudrate
         UsbInterface.controlTransfer(handle, (byte) 0x03, 16390, 1, buffer);
@@ -137,7 +132,7 @@ public class Driver {
     }
 
 
-    //main functin that initializes the device and starts the threads
+    //main function that initializes the device and starts the threads
     public void driverFunction(BlockingQueue bq) throws UnsupportedCommandException, InterruptedException {
       //initialize the device
       int result = LibUsb.init(null);

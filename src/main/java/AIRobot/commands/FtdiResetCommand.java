@@ -52,17 +52,6 @@ public class FtdiResetCommand extends Command {
         this.enabled = enabled ? (byte)1 : (byte)0;
     }
 
-//    public byte[] toPayloadData(){
-//        //for ping
-//        return new byte[0];
-//    }
-
-//    public byte[] toPayloadByteArray()
-//    {
-//        ByteBuffer buffer = ByteBuffer.allocate(cbPayload).order(LynxDatagram.LYNX_ENDIAN);
-//        buffer.put(this.enabled);
-//        return buffer.array();
-//    }
     public byte[] toPayloadData()
     {
         ByteBuffer buffer = ByteBuffer.allocate(cbPayload).order(Datagram.LYNX_ENDIAN);
