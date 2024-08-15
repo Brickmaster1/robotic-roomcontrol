@@ -49,8 +49,10 @@ import java.util.concurrent.Executors;
 
 import static java.lang.System.exit;
 
+//DriverServer class is the main class that starts the HTTP server and the driver function
 public class DriverServer {
 
+    //The port number to listen for incoming requests.
     int port = 9000;
 
     static {
@@ -60,6 +62,7 @@ public class DriverServer {
 
     }
 
+    //starts the http server and maps handlers to specific urls
     public void startHTTPServer(BlockingQueue bq) throws IOException, UnsupportedCommandException, InterruptedException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
         System.out.println("HTTP Server started at " + port);
@@ -74,6 +77,7 @@ public class DriverServer {
         server.start();
     }
 
+    //main function that starts the HTTP server and the driver function
     public static void main(String args[]) throws IOException, UnsupportedCommandException, InterruptedException {
         //Queue size of 100
         BlockingQueue bq = new ArrayBlockingQueue<>(100);
