@@ -1,62 +1,70 @@
-# AIRobot: From FTC Chassis to Self-Driving Vehicle
+# AIRobot: From FTC Chassis to Self-Driving Robot
 
-Inspired by a previously used FTC chassis and a growing interest in autonomous 
-vehicles, AIRobot is a project born out of the desire to repurpose existing 
-resources.
+My objective in this project was to repurpose an FTC chassis 
+used in competitions to experiment with and build a self-driving 
+robot. Here are the robotic components I had to work with:
 
-Initially, I explored potential project ideas on Reddit, hoping to find 
-inspiration for my unused FTC chassis. However, the FTC code being partially 
-close-sourced and designed exclusively for Android phones became apparent, 
-hindering my ability to explore alternative applications. Undeterred by these 
-constraints, I decided to embark on a new path.
+- **Rev Robotics Expansion Hub**
+- **4 GoBilda mecanum wheels**
+- **GoBilda Chassis**
+- **2 Motorola cell phones acting as the Robotics Controller and Driver stations**
+- **Logitech Joystick**
 
-To unlock the full potential of the chassis, I undertook the task of porting 
-the FTC code to the Raspberry Pi platform. This pivotal step expanded the 
-project’s horizons, enabling the integration of a camera and the development 
-of a self-driving model. Through rigorous training and testing, the model 
-learned to navigate its environment autonomously.
+To develop the self-driving capability, I replaced the Android 
+Robotics Controller with a Raspberry Pi and used a MacBook as 
+the Driver station, networking over Wi-Fi. Porting the FTC code 
+to the Raspberry Pi presented a significant challenge, especially 
+when it came to interfacing the Raspberry Pi with the Rev Robotics 
+Expansion Hub due to the lack of a data sheet for the hub. To 
+overcome this hurdle, I relied on the [OpenRC-Turbo](https://github.com/OpenFTC/OpenRC-Turbo) 
+repository on GitHub to reverse engineer the USB command parameters 
+of the Rev Robotics Expansion Hub for motor control.
 
-**Disclaimer:** This code is not intended for use in the FIRST Tech Challenge (FTC). 
-It is a custom project developed for educational purposes, focusing on autonomous 
-driving and repurposing existing robotics components.
+I enabled communication between the Driver station (MacBook) 
+and the Robotics controller (Raspberry Pi) by developing a web 
+server on the Raspberry Pi. This allowed the Driver station and 
+the self-driving engine (Python) to communicate over HTTP.
 
 ## Model Training Process
 
-To train the self-driving car model, I implemented a custom training mode on 
-the robot. This mode captured essential data, including the steering angle, 
-corresponding motor power, and an image of the track on which the robot was 
-moving. With this data, I trained the model using the [Dave-2 End to End Learning 
+To train the self-driving car model, I implemented a custom 
+training mode on the robot. The robot collected essential data 
+in this mode, including the steering angle, corresponding motor 
+power, and an image of the track on which it was moving. With 
+this data, I trained the model using the [Dave-2 End to End Learning 
 Model](https://developer.nvidia.com/blog/deep-learning-self-driving-cars/), 
-a deep learning approach designed for autonomous driving. After training, the 
-model was rigorously tested, running the robot on a variety of tracks, including 
-both familiar paths and completely new environments.
+a deep learning approach designed for autonomous driving. Following 
+training, the model underwent rigorous testing by running the robot 
+on a variety of tracks, including both familiar paths and entirely 
+new environments.
 
-While challenges arose during the development process, including the need to 
-overcome the power limitations of Android phones and optimize model performance 
-on the Raspberry Pi architecture, the end result is a testament to the power of 
-perseverance and innovation. AIRobot stands as a proof of concept, demonstrating 
-the feasibility of transforming a seemingly obsolete component into a cutting-edge 
-autonomous vehicle.
-
-This project serves as a valuable resource for those seeking to explore similar 
-endeavors, showcasing the potential of repurposing existing robotics components 
-to create groundbreaking projects.
+I hope this project serves as a resource for those seeking to explore 
+similar endeavors, showcasing the potential of repurposing existing 
+robotics components for exciting projects.
 
 ## Credits and Resources
 
-AIRobot would not have been possible without the contributions and open-source 
-work from the following repositories:
+AIRobot would not have been possible without the contributions 
+and open-source work from the following repositories:
 
-- **[OpenRC-Turbo](https://github.com/OpenFTC/OpenRC-Turbo)**: This repository 
-provided the foundation for understanding and porting the FTC code to the Raspberry 
-Pi platform. The work done here greatly aided in adapting the FTC chassis for use 
-in this project.
+- **[OpenRC-Turbo](https://github.com/OpenFTC/OpenRC-Turbo)**: 
+  This repository provided the foundation for understanding 
+  and porting the FTC code to the Raspberry Pi platform. The 
+  work done here greatly aided in adapting the FTC chassis for 
+  use in this project.
+- **[DeepPiCar](https://github.com/dctian/DeepPiCar)**: This 
+  project was instrumental in guiding the integration of a camera 
+  and the development of the self-driving model on the Raspberry 
+  Pi. The insights gained from DeepPiCar helped in overcoming 
+  the challenges of implementing autonomous navigation.
 
-- **[DeepPiCar](https://github.com/dctian/DeepPiCar)**: This project was instrumental 
-in guiding the integration of a camera and the development of the self-driving model 
-on the Raspberry Pi. The insights gained from DeepPiCar helped in overcoming the 
-challenges of implementing autonomous navigation.
+I extend my gratitude to the developers and contributors of these 
+projects for their efforts in advancing the field of robotics and 
+making these resources available to the community.
 
-I extend my gratitude to the developers and contributors of these projects for 
-their efforts in advancing the field of robotics and making these resources available 
-to the community.
+---
+
+### Important Note:
+
+This project is meant for fun and learning. The code or components 
+recommended in this project must not and cannot be used in FTC.
