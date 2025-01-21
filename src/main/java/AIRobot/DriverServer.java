@@ -52,6 +52,11 @@ import static java.lang.System.exit;
 //DriverServer class is the main class that starts the HTTP server and the driver function
 public class DriverServer {
 
+    DriverServer() {}
+    DriverServer(int port) {
+        this.port = port;
+    }
+
     //The port number to listen for incoming requests.
     int port = 9000;
 
@@ -79,9 +84,24 @@ public class DriverServer {
 
     //main function that starts the HTTP server and the driver function
     public static void main(String args[]) throws IOException, UnsupportedCommandException, InterruptedException {
+        String prefix = "--port=";
+        int port = 0;
+        for (String arg : args) {
+            if (arg.startsWith(prefix)) {
+                String value = arg.substring(prefix.length());
+                port = Integer.parseInt(value);
+                //System.out.println("Argument with prefix '" + prefix + "' found: " + value);
+            }
+        }
+
         //Queue size of 100
         BlockingQueue bq = new ArrayBlockingQueue<>(100);
-        DriverServer ds = new DriverServer();
+        DriverServer ds;
+        if(port != 0) {
+            ds = new DriverServer(port);
+        } else {
+            ds = new DriverServer();
+        }
         ds.startHTTPServer(bq);
         Driver driver = new Driver();
         try {
