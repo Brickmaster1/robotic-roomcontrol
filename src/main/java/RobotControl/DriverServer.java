@@ -135,7 +135,7 @@ public class DriverServer {
             }
 
             //driver.driverFunction(bq);
-        } catch (Exception e){
+        } catch (Exception e) {
             System.err.println("Error " + e.getMessage());
         } finally {
             LibUsb.freeDeviceList(list, true);

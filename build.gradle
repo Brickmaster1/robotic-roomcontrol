@@ -1,12 +1,5 @@
 import groovy.json.JsonSlurper
 
-import java.nio.file.FileVisitResult
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
-import java.util.regex.Pattern
-import java.nio.file.Paths
-import java.nio.file.Files
-
 plugins {
     id 'java'
     id 'com.gradleup.shadow' version '9.0.0-beta4'
@@ -55,50 +48,38 @@ if (!configFile.exists()) {
     logger.lifecycle("Configuration file 'deployment.json' not found. Creating a template...")
 
     def templateContent = '''{
-      "hosts": [
+  "hosts": [
+    {
+      "name": "exampleHost",
+      "hostname": "example.com",
+      "username": "user123",
+      "password": "superSecurePassword",
+      "port": 22,
+      "fileTransfer": [
         {
-          "name": "host1",
-          "hostname": "192.168.1.10",
-          "username": "admin",
-          "password": "securepassword",
-          "port": 22,
-          "deployDirectory": "/path/to/dir",
-          "deployedFiles":  [
+          "directory": "/remote/deploy/dir",
+          "files": [
             {
-              "${rootDir}/build": [
-                "program.jar"
+              "directory": "${rootDir}/build",
+              "files": [
+                "program-${version}.jar"
               ]
-            }
-          ], "commands": [
-            "echo \"hello server 1!\""
-          ]
-        },
-        {
-          "name": "host2",
-          "hostname": "example.com",
-          "username": "root",
-          "keyFile": "/path/to/private/key",
-          "deployDirectory": "/path/to/dir",
-          "deployedFiles":  [
+            },
             {
-              "${rootDir}/build": [
-                "program-${version}-all.jar"
-              ], "${rootDir}/resources": [
-                "**"
-              ], "${rootDir}/testing": [
-                "test*/*"
-              ], "${rootDir/external}": [
-                "*.dll",
-                "*.so",
-                "*.dylib"
-              ]
+              "directory": "${rootDir}/resources"
+            },
+            {
+              "files": "${rootDir}/docs/**/*.html"
             }
-          ], "commands": [
-            "echo \"hello!\""
           ]
         }
+      ],
+      "commands": [
+        "echo 'Hello from remote server!'"
       ]
-    }'''
+    }
+  ]
+}'''
 
     configFile.text = templateContent
     throw new GradleException("Template 'deployment.json' has been created. Please fill in the required details, or if no desired remotes, leave the file blank and rerun the build.")
@@ -107,37 +88,38 @@ if (!configFile.exists()) {
 def jsonSlurper = new JsonSlurper()
 def hostsConfig = jsonSlurper.parse(configFile)
 
-def resolvePlaceholders(input) {
-    if (input instanceof String) {
-        def resolved = input
-        project.properties.each { key, value ->
-            if(key != null) {
-                resolved = resolved.replaceAll(Pattern.quote("\${${key}}"), value.toString())
-            }
+String resolvePlaceholders(String value) {
+    return value.replaceAll(/\$\{([^}]+)\}/) { match ->
+        def key = match[1]
+        def resolved = project.hasProperty(key) ? project.property(key) : null
+        if (resolved == null) {
+            logger.warn("Warning: No value found for key: ${key}")
+            return ""
         }
         return resolved
     }
-    return input
 }
 
-hostsConfig.hosts.each { host ->
-    host.each { key, value ->
-        if(value instanceof String) {
-            host[key] = resolvePlaceholders(value)
-        } else if(value instanceof List) {
-            host[key] = value.collect { v ->
-                if (v instanceof Map) {
-                    v.collectEntries { k, v2 ->
-                        [resolvePlaceholders(k), resolvePlaceholders(v2)]
-                    }
-                } else {
-                    resolvePlaceholders(v)
-                }
+void resolveConfigPlaceholders(Object node) {
+    if (node instanceof Map) {
+        node.each { key, value ->
+            if (value instanceof String) {
+                node[key] = resolvePlaceholders(value)
+            } else {
+                resolveConfigPlaceholders(value)
+            }
+        }
+    } else if (node instanceof List) {
+        node.eachWithIndex { value, idx ->
+            if (value instanceof String) {
+                node[idx] = resolvePlaceholders(value)
+            } else {
+                resolveConfigPlaceholders(value)
             }
         }
     }
 }
-
+resolveConfigPlaceholders(hostsConfig)
 
 ssh.remotes {
     hostsConfig.hosts.each { hostConfig ->
@@ -151,12 +133,13 @@ ssh.remotes {
             if (hostConfig.password) {
                 password = hostConfig.password
             } else if (hostConfig.keyFile) {
-                identity = file(hostConfig.keyFile)
+                identity = hostConfig.keyFile
+            } else {
+                throw new GradleException("No password or keyFile specified for host: $remoteName")
             }
         }
     }
 }
-
 ssh.settings {
     knownHosts = project.hasProperty('knownHosts') ? project.knownHosts : allowAnyHosts
 }
@@ -164,77 +147,141 @@ ssh.settings {
 tasks.register('deploy') {
     dependsOn build
     doLast {
-        ssh.remotes.each { remoteName, remote ->
-            def hostConfig = hostsConfig.hosts.find { it.name == remoteName }
+        hostsConfig.hosts.each { hostConfig ->
+            ssh.run {
+                session(ssh.remotes[hostConfig.name]) {
+                    hostConfig.fileTransfer.each { transferConfig ->
+                        def remoteDir = transferConfig.directory
+                        if (!remoteDir) {
+                            throw new GradleException("Remote directory is not specified for host: ${hostConfig.name}")
+                        }
 
-            if (hostConfig && hostConfig.deployDirectory && hostConfig.deployedFiles) {
-                ssh.run {
-                    session(remote) {
-                        hostConfig.deployedFiles.each { entry ->
-                            entry.each { baseDir, fileSelector ->
-                                entry.each { filePattern ->
-                                    def path = Paths.get(baseDir)
-                                    def matcher = (filePattern as String).replace('**', '.*').replace('*', '[^/]*')
-                                    def matchedFiles = []
+                        transferConfig.files.each { fileConfig ->
+                            if (fileConfig.directory && fileConfig.files) {
+                                def localDir = resolvePlaceholders(fileConfig.directory)
+                                def localFilePatterns = fileConfig.files.collect { resolvePlaceholders(it) }
+                                logger.lifecycle("Uploading specified files from $localDir to $remoteDir with patterns: $localFilePatterns")
 
-                                    if ((filePattern as String).startsWith('**')) {
-                                        // Recursive search for ** pattern
-                                        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
-                                            @Override
-                                            FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                                                if (file.toString().matches(matcher)) {
-                                                    matchedFiles << file.toString()// Add full path to the matched list
-                                                }
-                                                return FileVisitResult.CONTINUE
-                                            }
+                                localFilePatterns.each { pattern ->
+                                    fileTree(dir: localDir, include: pattern).visit { fileDetails ->
+                                        if (!fileDetails.directory) {
+                                            def relativePath = fileDetails.relativePath.toString()
+                                            def remotePath = "$remoteDir/$relativePath"
+                                            def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
 
-                                            @Override
-                                            FileVisitResult visitFileFailed(Path file, IOException exc) {
-                                                return FileVisitResult.CONTINUE
-                                            }
-                                        } as java.nio.file.FileVisitor<? super java.nio.file.Path>)
-                                    } else if ((filePattern as String).contains('*')) {
-                                        // Single-level search for * pattern
-                                        Files.newDirectoryStream(path, matcher).each { file ->
-                                            matchedFiles << file.toString()  // Add full path to the matched list
+                                            // Ensure the parent directory exists
+                                            logger.lifecycle("Ensuring remote directory exists: $remoteParentDir")
+                                            execute "mkdir -p $remoteParentDir"
+
+                                            logger.lifecycle("Uploading: $fileDetails.file to $remotePath")
+                                            put from: fileDetails.file, into: remotePath
                                         }
-                                    } else {
-                                        matchedFiles << filePattern
                                     }
+                                }
+                            } else if (fileConfig.directory) {
+                                def localDir = resolvePlaceholders(fileConfig.directory)
+                                logger.lifecycle("Uploading directory: $localDir to $remoteDir")
 
-                                    matchedFiles.each { File file ->
-                                        put from: (baseDir + file), into: hostConfig.deployDirectory
+                                fileTree(localDir).visit { fileDetails ->
+                                    if (!fileDetails.directory) {
+                                        def relativePath = fileDetails.relativePath.toString()
+                                        def remotePath = "$remoteDir/$relativePath"
+                                        def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
+
+                                        // Ensure the parent directory exists
+                                        logger.lifecycle("Ensuring remote directory exists: $remoteParentDir")
+                                        execute "mkdir -p $remoteParentDir"
+
+                                        logger.lifecycle("Uploading: $fileDetails.file to $remotePath")
+                                        put from: fileDetails.file, into: remotePath
                                     }
+                                }
+                            } else if (fileConfig.files) {
+                                def localFiles = resolvePlaceholders(fileConfig.files)
+
+                                // Detect wildcard usage
+                                if (localFiles.contains("**")) {
+                                    def baseDir = localFiles.substring(0, localFiles.indexOf("**")).trim()
+                                    logger.lifecycle("Uploading wildcard files from: $baseDir with pattern: $localFiles to $remoteDir")
+
+                                    fileTree(dir: baseDir, include: localFiles.substring(baseDir.length())).visit { fileDetails ->
+                                        if (!fileDetails.directory) {
+                                            def relativePath = fileDetails.relativePath.toString()
+                                            def remotePath = "$remoteDir/$relativePath"
+                                            def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
+
+                                            // Ensure the parent directory exists
+                                            logger.lifecycle("Ensuring remote directory exists: $remoteParentDir")
+                                            execute "mkdir -p $remoteParentDir"
+
+                                            logger.lifecycle("Uploading: $fileDetails.file to $remotePath")
+                                            put from: fileDetails.file, into: remotePath
+                                        }
+                                    }
+                                } else {
+                                    logger.lifecycle("Uploading specific file: $localFiles to $remoteDir")
+
+                                    put from: file(localFiles), into: "$remoteDir"
                                 }
                             }
                         }
                     }
                 }
-            } else {
-                logger.lifecycle("No deployDirectory or deployedFiles found for host: ${remoteName}")
             }
         }
     }
 }
-
 
 tasks.register('remoteRun') {
     dependsOn deploy
     doLast {
-        ssh.remotes.each { remoteName, remote ->
-            def hostConfig = hostsConfig.hosts.find { it.name == remoteName }
+        hostsConfig.hosts.each { hostConfig ->
+            ssh.run {
+                session(ssh.remotes[hostConfig.name]) {
+                    hostConfig.commands.each { command ->
+                        Map options = new HashMap()
+                        if (command instanceof Map) {
+                            command.each { cmd, optionMap ->
+                                optionMap.each { key, value ->
+                                    if (value instanceof Map) {
+                                        value.each { entry, val ->
+                                            options[entry] = val
+                                        }
+                                    } else {
+                                        options[key] = value
+                                    }
+                                }
 
-            if (hostConfig && hostConfig.commands) {
-                ssh.run {
-                    session(remote) {
-                        hostConfig.commands.each { command ->
-                            execute command
+                                command = cmd
+
+                                logger.lifecycle("Executing command on ${hostConfig.name}: $command")
+                                logger.lifecycle("Options map: " + options)
+
+                                if (command.toString().startsWith("sudo ")) {
+                                    executeSudo(command.substring(5), *: options) { result ->
+                                        logger.lifecycle(result)
+                                    }
+                                } else {
+                                    execute(command, *:options)  { result ->
+                                        logger.lifecycle(result)
+                                    }
+                                }
+                            }
+                        } else {
+                            if (command.toString().startsWith("sudo ")) {
+                                executeSudo(command.substring(5)) { result ->
+                                    logger.lifecycle(result)
+                                }
+                            } else {
+                                execute(command)  { result ->
+                                    logger.lifecycle(result)
+                                }
+                            }
                         }
                     }
                 }
-            } else {
-                logger.lifecycle("No commands found for host: ${remoteName}")
             }
         }
     }
 }
+

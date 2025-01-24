@@ -10,6 +10,8 @@
       <option name="DEBUG_PORT" value="40009" />
       <option name="LOCAL" value="false" />
     </RunnerSettings>
-    <method v="2" />
+    <method v="2">
+      <option name="Gradle.BeforeRunTask" enabled="true" tasks="remoteRun" externalProjectPath="$PROJECT_DIR$" vmOptions="" scriptParameters="" />
+    </method>
   </configuration>
 </component>
