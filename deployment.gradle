@@ -1,48 +1,6 @@
 import groovy.json.JsonSlurper
 
-plugins {
-    id 'java'
-    id 'com.gradleup.shadow' version '9.0.0-beta4'
-    id 'org.hidetake.ssh' version '2.11.2'
-}
-
-group = project.group
-version = project.version
-description = project.description
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(project.javaVersion)
-    }
-}
-
-repositories {
-    maven {
-        url = uri('https://nexus.ailis.de/content/groups/public/')
-    }
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'org.usb4java:usb4java:1.3.0'
-//    implementation 'org.openpnp:opencv:4.9.0-0'
-}
-
-tasks.assemble.dependsOn(shadowJar)
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-
-tasks.jar {
-    manifest {
-        attributes(
-                'Main-Class': 'RobotControl.DriverServer'
-        )
-    }
-}
-
-def configFile = file('deployment.json')
+def configFile = file("$rootDir/deployment.json")
 
 if (!configFile.exists()) {
     println("Configuration file 'deployment.json' not found. Creating a template...")
@@ -50,33 +8,62 @@ if (!configFile.exists()) {
     def templateContent = '''{
   "hosts": [
     {
-      "name": "exampleHost",
-      "hostname": "example.com",
-      "username": "user123",
-      "password": "superSecurePassword",
-      "port": 22,
-      "fileTransfer": [
-        {
-          "directory": "/remote/deploy/dir",
-          "files": [
+      "name": "host-name",
+      "hostname": "127.0.0.1",
+      "username": "user",
+      "password": "SuperSecurerPassword",
+      "port": 2202,
+      "tasks": {
+
+        "waitProgramStart": {
+          "await": [
+            {"sudo pgrep -f \\"java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=\\\\*:40009 -jar program-${version}-all.jar --debug\\"": {
+              "conditions": {
+                "exitCode": 0
+              }
+            }}
+          ]
+        },
+
+        "killProgramIfRunning": {
+          "commands": [
+            {"sudo pkill -f \\"java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=\\\\*:40009 -jar program-${version}-all.jar --debug\\"": {"options": {
+              "ignoreError": true
+            }}}
+          ]
+        },
+
+        "deployFiles": {
+          "fileTransfer": [
             {
-              "directory": "${rootDir}/build",
+              "directory": "/home/user",
               "files": [
-                "program-${version}.jar"
+                {
+                  "directory": "${rootDir}/build/libs",
+                  "files": [
+                    "program-${version}-all.jar"
+                  ]
+                },
+                {
+                  "directory": "${rootDir}/resource"
+                }
               ]
-            },
-            {
-              "directory": "${rootDir}/resources"
-            },
-            {
-              "files": "${rootDir}/docs/**/*.html"
             }
           ]
+        },
+
+        "remoteDebug": {
+          "depends": [
+            {"gradle": "build"},
+            "deployFiles",
+            "killProgramIfRunning"
+          ],
+          "commands": [
+            "sudo java -agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:40009 -jar program-${version}-all.jar --debug"
+          ]
         }
-      ],
-      "commands": [
-        "echo 'Hello from remote server!'"
-      ]
+
+      }
     }
   ]
 }'''
@@ -102,13 +89,18 @@ String resolvePlaceholders(String value) {
 
 void resolveConfigPlaceholders(Object node) {
     if (node instanceof Map) {
+        Map newMap = [:] // Create a new map for resolved keys
         node.each { key, value ->
+            String resolvedKey = (key instanceof String) ? resolvePlaceholders(key) : key
             if (value instanceof String) {
-                node[key] = resolvePlaceholders(value)
+                newMap[resolvedKey] = resolvePlaceholders(value)
             } else {
                 resolveConfigPlaceholders(value)
+                newMap[resolvedKey] = value
             }
         }
+        node.clear() // Clear the original map
+        node.putAll(newMap) // Replace with the new key-value mapping
     } else if (node instanceof List) {
         node.eachWithIndex { value, idx ->
             if (value instanceof String) {
@@ -164,9 +156,18 @@ hostsConfig.hosts.each { hostConfig ->
             }
 
             doLast {
-                fileTransferBlock(hostConfig, taskConfig)
-                remoteCommandsBlock(hostConfig, taskConfig)
-                awaitCommandsBlock(hostConfig, taskConfig)
+                boolean success = false
+                while(!success) {
+                    try {
+                        fileTransferBlock(hostConfig, taskConfig)
+                        remoteCommandsBlock(hostConfig, taskConfig)
+                        awaitCommandsBlock(hostConfig, taskConfig)
+                        success = true
+                    } catch (Exception exception) {
+                        println("Caught exeption: " + exception.message + "; most likely the connection timed out, trying again.")
+                        sleep(1000)
+                    }
+                }
             }
         }
     }
@@ -338,7 +339,7 @@ void awaitCommandsBlock(hostConfig, taskConfig) {
                         }
                     }
 
-                     waitFor.each { condition, value ->
+                    waitFor.each { condition, value ->
                         switch (condition) {
                             case "matchOutput":
                                 conditionsMet = outputBuffer.contains(value)
