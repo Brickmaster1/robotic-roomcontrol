@@ -45,7 +45,7 @@ tasks.jar {
 def configFile = file('deployment.json')
 
 if (!configFile.exists()) {
-    logger.lifecycle("Configuration file 'deployment.json' not found. Creating a template...")
+    println("Configuration file 'deployment.json' not found. Creating a template...")
 
     def templateContent = '''{
   "hosts": [
@@ -124,7 +124,7 @@ resolveConfigPlaceholders(hostsConfig)
 ssh.remotes {
     hostsConfig.hosts.each { hostConfig ->
         def remoteName = hostConfig.name
-        logger.lifecycle("Configuring remote host: $remoteName")
+        println("Configuring remote host: $remoteName")
 
         "$remoteName" {
             host = hostConfig.hostname
@@ -144,139 +144,104 @@ ssh.settings {
     knownHosts = project.hasProperty('knownHosts') ? project.knownHosts : allowAnyHosts
 }
 
-tasks.register('deploy') {
-    dependsOn build
-    doLast {
-        hostsConfig.hosts.each { hostConfig ->
-            ssh.run {
-                session(ssh.remotes[hostConfig.name]) {
-                    hostConfig.fileTransfer.each { transferConfig ->
-                        def remoteDir = transferConfig.directory
-                        if (!remoteDir) {
-                            throw new GradleException("Remote directory is not specified for host: ${hostConfig.name}")
-                        }
-
-                        transferConfig.files.each { fileConfig ->
-                            if (fileConfig.directory && fileConfig.files) {
-                                def localDir = resolvePlaceholders(fileConfig.directory)
-                                def localFilePatterns = fileConfig.files.collect { resolvePlaceholders(it) }
-                                logger.lifecycle("Uploading specified files from $localDir to $remoteDir with patterns: $localFilePatterns")
-
-                                localFilePatterns.each { pattern ->
-                                    fileTree(dir: localDir, include: pattern).visit { fileDetails ->
-                                        if (!fileDetails.directory) {
-                                            def relativePath = fileDetails.relativePath.toString()
-                                            def remotePath = "$remoteDir/$relativePath"
-                                            def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
-
-                                            // Ensure the parent directory exists
-                                            logger.lifecycle("Ensuring remote directory exists: $remoteParentDir")
-                                            execute "mkdir -p $remoteParentDir"
-
-                                            logger.lifecycle("Uploading: $fileDetails.file to $remotePath")
-                                            put from: fileDetails.file, into: remotePath
-                                        }
-                                    }
-                                }
-                            } else if (fileConfig.directory) {
-                                def localDir = resolvePlaceholders(fileConfig.directory)
-                                logger.lifecycle("Uploading directory: $localDir to $remoteDir")
-
-                                fileTree(localDir).visit { fileDetails ->
-                                    if (!fileDetails.directory) {
-                                        def relativePath = fileDetails.relativePath.toString()
-                                        def remotePath = "$remoteDir/$relativePath"
-                                        def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
-
-                                        // Ensure the parent directory exists
-                                        logger.lifecycle("Ensuring remote directory exists: $remoteParentDir")
-                                        execute "mkdir -p $remoteParentDir"
-
-                                        logger.lifecycle("Uploading: $fileDetails.file to $remotePath")
-                                        put from: fileDetails.file, into: remotePath
-                                    }
-                                }
-                            } else if (fileConfig.files) {
-                                def localFiles = resolvePlaceholders(fileConfig.files)
-
-                                // Detect wildcard usage
-                                if (localFiles.contains("**")) {
-                                    def baseDir = localFiles.substring(0, localFiles.indexOf("**")).trim()
-                                    logger.lifecycle("Uploading wildcard files from: $baseDir with pattern: $localFiles to $remoteDir")
-
-                                    fileTree(dir: baseDir, include: localFiles.substring(baseDir.length())).visit { fileDetails ->
-                                        if (!fileDetails.directory) {
-                                            def relativePath = fileDetails.relativePath.toString()
-                                            def remotePath = "$remoteDir/$relativePath"
-                                            def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
-
-                                            // Ensure the parent directory exists
-                                            logger.lifecycle("Ensuring remote directory exists: $remoteParentDir")
-                                            execute "mkdir -p $remoteParentDir"
-
-                                            logger.lifecycle("Uploading: $fileDetails.file to $remotePath")
-                                            put from: fileDetails.file, into: remotePath
-                                        }
-                                    }
-                                } else {
-                                    logger.lifecycle("Uploading specific file: $localFiles to $remoteDir")
-
-                                    put from: file(localFiles), into: "$remoteDir"
-                                }
+// register tasks for the deployment.json config
+hostsConfig.hosts.each { hostConfig ->
+    hostConfig.tasks.each { hostTask, taskConfig ->
+        tasks.register("$hostConfig.name-$hostTask") {
+            group = 'deployment'
+            if(taskConfig.depends) {
+                taskConfig.depends.each { task ->
+                    if(task instanceof Map) {
+                        if(task.gradle && task.gradle instanceof Map) {
+                            task.gradle.each { gradleTask ->
+                                dependsOn(gradleTask)
                             }
                         }
+                    } else if(task instanceof String) {
+                        dependsOn("$hostConfig.name-$task")
                     }
                 }
+            }
+
+            doLast {
+                fileTransferBlock(hostConfig, taskConfig)
+                remoteCommandsBlock(hostConfig, taskConfig)
+                awaitCommandsBlock(hostConfig, taskConfig)
             }
         }
     }
 }
 
-tasks.register('remoteRun') {
-    dependsOn deploy
-    doLast {
-        hostsConfig.hosts.each { hostConfig ->
-            ssh.run {
-                session(ssh.remotes[hostConfig.name]) {
-                    hostConfig.commands.each { command ->
-                        Map options = new HashMap()
-                        if (command instanceof Map) {
-                            command.each { cmd, optionMap ->
-                                optionMap.each { key, value ->
-                                    if (value instanceof Map) {
-                                        value.each { entry, val ->
-                                            options[entry] = val
-                                        }
-                                    } else {
-                                        options[key] = value
-                                    }
+void fileTransferBlock(hostConfig, taskConfig) {
+    ssh.run {
+        session(ssh.remotes[hostConfig.name]) {
+            taskConfig.fileTransfer.each { transferConfig ->
+                def remoteDir = transferConfig.directory
+                if (!remoteDir) {
+                    throw new GradleException("Remote directory is not specified for host: ${taskConfig.name}")
+                }
+
+                transferConfig.files.each { fileConfig ->
+                    if (fileConfig.directory && fileConfig.files) {
+                        def localDir = resolvePlaceholders(fileConfig.directory)
+                        def localFilePatterns = fileConfig.files.collect { resolvePlaceholders(it) }
+                        println("Uploading files from $localDir to $remoteDir with patterns: $localFilePatterns")
+
+                        localFilePatterns.each { pattern ->
+                            fileTree(dir: localDir, include: pattern).visit { fileDetails ->
+                                if (!fileDetails.directory) {
+                                    def relativePath = fileDetails.relativePath.toString()
+                                    def remotePath = "$remoteDir/$relativePath"
+                                    def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
+
+                                    // Ensure the parent directory exists
+                                    execute "mkdir -p $remoteParentDir"
+
+                                    println("Uploading: $fileDetails.file to $remotePath")
+                                    put from: fileDetails.file, into: remotePath
                                 }
+                            }
+                        }
+                    } else if (fileConfig.directory) {
+                        def localDir = resolvePlaceholders(fileConfig.directory)
+                        println("Uploading directory: $localDir to $remoteDir")
+                        fileTree(localDir).visit { fileDetails ->
+                            if (!fileDetails.directory) {
+                                def relativePath = fileDetails.relativePath.toString()
+                                def remotePath = "$remoteDir/$relativePath"
+                                def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
 
-                                command = cmd
+                                // Ensure the parent directory exists
+                                execute "mkdir -p $remoteParentDir"
 
-                                logger.lifecycle("Executing command on ${hostConfig.name}: $command")
-                                logger.lifecycle("Options map: " + options)
+                                println("Uploading: $fileDetails.file to $remotePath")
+                                put from: fileDetails.file, into: remotePath
+                            }
+                        }
+                    } else if (fileConfig.files) {
+                        def localFiles = resolvePlaceholders(fileConfig.files)
 
-                                if (command.toString().startsWith("sudo ")) {
-                                    executeSudo(command.substring(5), *: options) { result ->
-                                        logger.lifecycle(result)
-                                    }
-                                } else {
-                                    execute(command, *:options)  { result ->
-                                        logger.lifecycle(result)
-                                    }
+                        // Wildcard file selection
+                        if (localFiles.contains("**")) {
+                            def baseDir = localFiles.substring(0, localFiles.indexOf("**")).trim()
+                            println("Uploading wildcard files from: $baseDir with pattern: $localFiles to $remoteDir")
+
+                            fileTree(dir: baseDir, include: localFiles.substring(baseDir.length())).visit { fileDetails ->
+                                if (!fileDetails.directory) {
+                                    def relativePath = fileDetails.relativePath.toString()
+                                    def remotePath = "$remoteDir/$relativePath"
+                                    def remoteParentDir = remotePath.substring(0, remotePath.lastIndexOf('/'))
+
+                                    // Ensure the parent directory exists
+                                    execute "mkdir -p $remoteParentDir"
+
+                                    println("Uploading: $fileDetails.file to $remotePath")
+                                    put from: fileDetails.file, into: remotePath
                                 }
                             }
                         } else {
-                            if (command.toString().startsWith("sudo ")) {
-                                executeSudo(command.substring(5)) { result ->
-                                    logger.lifecycle(result)
-                                }
-                            } else {
-                                execute(command)  { result ->
-                                    logger.lifecycle(result)
-                                }
-                            }
+                            println("Uploading file: $localFiles to $remoteDir")
+                            put from: file(localFiles), into: "$remoteDir"
                         }
                     }
                 }
@@ -285,3 +250,113 @@ tasks.register('remoteRun') {
     }
 }
 
+void remoteCommandsBlock(hostConfig, taskConfig) {
+    ssh.run {
+        session(ssh.remotes[hostConfig.name]) {
+            taskConfig.commands.each { commandsConfig ->
+                Map options = new HashMap()
+                if (commandsConfig instanceof Map) {
+                    commandsConfig.each { command, optionMap ->
+                        optionMap.each { key, value ->
+                            if (value instanceof Map) {
+                                value.each { entry, val ->
+                                    if(key == "options") {
+                                        options[entry] = val
+                                    }
+                                }
+                            }
+                        }
+
+                        println("Executing command on ${hostConfig.name}: $command")
+
+                        if (command.toString().startsWith("sudo ")) {
+                            executeSudo(command.substring(5), *: options) { result ->
+                                println(result)
+                            }
+                        } else {
+                            execute(command, *: options) { result ->
+                                println(result)
+                            }
+                        }
+                    }
+                } else {
+                    if (commandsConfig.toString().startsWith("sudo ")) {
+                        executeSudo(commandsConfig.substring(5)) { result ->
+                            println(result)
+                        }
+                    } else {
+                        execute(commandsConfig) { result ->
+                            println(result)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void awaitCommandsBlock(hostConfig, taskConfig) {
+    taskConfig.await.each { awaitCommandsConfig ->
+        def options = new HashMap()
+        def waitFor = new HashMap()
+        if (awaitCommandsConfig instanceof Map) {
+            awaitCommandsConfig.each { command, modifiers ->
+                modifiers.each { key, value ->
+                    if (value instanceof Map) {
+                        value.each { entry, val ->
+                            if (key == "options") {
+                                options[entry] = val
+                            } else if (key == "conditions") {
+                                waitFor[entry] = val
+                            }
+                        }
+                    }
+                }
+
+                boolean conditionsMet = false
+                String outputBuffer
+                int exitCode
+
+                while (!conditionsMet) {
+                    ssh.run {
+                        session(ssh.remotes[hostConfig.name]) {
+                            if (command.toString().startsWith("sudo ")) {
+                                try {
+                                    outputBuffer = executeSudo(command.substring(5), *: options)
+                                    exitCode = 0
+                                } catch (Exception e) {
+                                    exitCode = e.exitStatus
+                                }
+                            } else {
+                                try {
+                                    outputBuffer = execute(command, *: options)
+                                    exitCode = 0
+                                } catch (Exception e) {
+                                    exitCode = e.exitStatus
+                                }
+                            }
+                        }
+                    }
+
+                     waitFor.each { condition, value ->
+                        switch (condition) {
+                            case "matchOutput":
+                                conditionsMet = outputBuffer.contains(value)
+                                break
+                            case "!matchOutput":
+                                conditionsMet = !outputBuffer.contains(value)
+                                break
+                            case "exitCode":
+                                conditionsMet = value == exitCode
+                                break
+                            default:
+                                throw new GradleException("Unknown condition: $condition")
+                        }
+                    }
+
+                    sleep(5000)
+                }
+            }
+        }
+    }
+}

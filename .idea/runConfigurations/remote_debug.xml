@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="remote-debug" type="Remote">
+  <configuration default="false" name="remote-debug" type="Remote" activateToolWindowBeforeRun="false">
     <option name="USE_SOCKET_TRANSPORT" value="true" />
     <option name="SERVER_MODE" value="false" />
     <option name="SHMEM_ADDRESS" />
@@ -11,7 +11,7 @@
       <option name="LOCAL" value="false" />
     </RunnerSettings>
     <method v="2">
-      <option name="Gradle.BeforeRunTask" enabled="true" tasks="remoteRun" externalProjectPath="$PROJECT_DIR$" vmOptions="" scriptParameters="" />
+      <option name="Gradle.BeforeRunTask" enabled="false" tasks="fredssh-waitProgramStart" externalProjectPath="$PROJECT_DIR$" vmOptions="" scriptParameters="" />
     </method>
   </configuration>
 </component>

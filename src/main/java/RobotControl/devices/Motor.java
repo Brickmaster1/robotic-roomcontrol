@@ -49,7 +49,7 @@ public class Motor {
 
     private double power;    // Power level (+CW, -CCW)
     private Module module;
-    public Motor(byte mtr, DeviceHandle hndl, Module module){
+    public Motor(byte mtr, DeviceHandle hndl, Module module) {
         motor = mtr;
         handle = hndl;
         this.module = module;

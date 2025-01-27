@@ -127,18 +127,22 @@ public class DriverServer {
                     throw new LibUsbException("Unable to read device descriptor", result);
                 }
 
+                String manufacturer = getDeviceString(device, descriptor.iManufacturer());
+                String product = getDeviceString(device, descriptor.iProduct());
+
+
                 System.out.println("Device: " + descriptor.idVendor() + ":" + descriptor.idProduct());
-                System.out.println("Manufacturer: " + getDeviceString(device, descriptor.iManufacturer()));
-                System.out.println("Product: " + getDeviceString(device, descriptor.iProduct()));
+                System.out.println("Manufacturer: " + manufacturer + " Short: " + Short.parseShort(manufacturer));
+                System.out.println("Product: " + product + " Short: " + Short.parseShort(product));
                 System.out.println("Serial Number: " + getDeviceString(device, descriptor.iSerialNumber()));
                 System.out.println("--------------------------------------");
             }
 
-            //driver.driverFunction(bq);
+            driver.driverFunction(bq);
         } catch (Exception e) {
             System.err.println("Error " + e.getMessage());
         } finally {
-            LibUsb.freeDeviceList(list, true);
+            //LibUsb.freeDeviceList(list, true);
             exit(1);
         }
         //eph.setMotorControl(driver.getMotorControl());
